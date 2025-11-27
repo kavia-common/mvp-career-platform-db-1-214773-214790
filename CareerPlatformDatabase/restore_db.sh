@@ -2,7 +2,7 @@
 
 # Universal Database Restore Script
 # Automatically detects backup type and restores to running database
-# Reads from env if provided; otherwise uses safe defaults.
+# Reads from runtime environment variables; does not read or cat any .env files.
 
 DB_NAME="${POSTGRES_DB:-myapp}"
 DB_USER="${POSTGRES_USER:-appuser}"

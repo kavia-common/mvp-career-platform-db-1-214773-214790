@@ -27,51 +27,16 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 /**
  * Environment loader
- * Prefer runtime environment variables passed via Docker/Compose.
- * For local development, if *.env files exist, they are loaded best-effort.
- * Build never requires these files.
+ * Prefer runtime environment variables provided via Docker/Compose/Kubernetes.
+ * For local development, DO NOT rely on wildcard globs or concatenation of env files.
+ * If you need local values, export them in your shell before starting the app.
  */
-function loadEnvFiles() {
-  const envFiles = ['postgres', 'mysql', 'sqlite', 'mongodb'];
-  const allEnvVars = {};
-
-  envFiles.forEach(dbType => {
-    const filePath = `${dbType}.env`;
-    if (!fs.existsSync(filePath)) return; // optional: do nothing if missing
-
-    try {
-      const content = fs.readFileSync(filePath, 'utf8');
-      let varsLoaded = 0;
-
-      content.split('\n').forEach(line => {
-        const trimmed = line.trim();
-        if (trimmed && (trimmed.startsWith('export ') || /^[A-Za-z_][A-Za-z0-9_]*=/.test(trimmed))) {
-          // Support lines with or without "export "
-          const exportLine = trimmed.startsWith('export ') ? trimmed.substring(7) : trimmed;
-          const [key, ...valueParts] = exportLine.split('=');
-          if (key && valueParts.length > 0) {
-            let value = valueParts.join('=');
-            if ((value.startsWith('"') && value.endsWith('"')) ||
-                (value.startsWith("'") && value.endsWith("'"))) {
-              value = value.slice(1, -1);
-            }
-            allEnvVars[key] = value;
-            varsLoaded++;
-          }
-        }
-      });
-
-      console.log(`✓ ${filePath} loaded (${varsLoaded} variables)`);
-    } catch (error) {
-      console.log(`✗ Error loading ${filePath}:`, error.message);
-    }
-  });
-
-  // process.env always takes precedence
-  return { ...allEnvVars, ...process.env };
+function loadEnv() {
+  // No file reads; only process.env to avoid build-time/file-based env coupling
+  return { ...process.env };
 }
 
-const env = loadEnvFiles();
+const env = loadEnv();
 
 // Database configuration builder
 const dbConfigBuilders = {

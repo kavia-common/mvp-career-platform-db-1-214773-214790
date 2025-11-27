@@ -10,8 +10,7 @@ COPY db_visualizer/server.js ./
 # Stage 2: Runtime with PostgreSQL client tools and Node
 FROM debian:stable-slim
 
-# Install minimal tools: PostgreSQL client (psql), mysql/mongo clients not needed for DB, but keeping for scripts resiliency is optional
-# We install postgresql client as startup.sh relies on pg_isready/psql binaries under /usr/lib/postgresql/<version>/bin
+# Install minimal tools: PostgreSQL client (psql) only; we do NOT copy or source .env files.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       ca-certificates \
@@ -20,7 +19,6 @@ RUN apt-get update && \
       sudo \
       procps \
       postgresql-client \
-      postgresql \
       sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -47,4 +45,5 @@ EXPOSE 3000
 
 # Default command: start database init script
 # Note: No references to .env files at build time. Runtime environment variables should be passed through Docker/Compose.
+# For official postgres images you can set POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD at runtime; this utility container expects these envs if used standalone.
 CMD ["/bin/bash", "-lc", "/app/startup.sh && node /app/db_visualizer/server.js --host 0.0.0.0"]

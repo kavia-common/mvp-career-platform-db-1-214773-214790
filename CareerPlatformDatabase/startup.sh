@@ -2,6 +2,7 @@
 
 # Minimal PostgreSQL startup script with full paths
 # Read from runtime env with safe defaults, not from .env files at build time
+# Do not source or concatenate any .env files; rely solely on process environment.
 DB_NAME="${POSTGRES_DB:-myapp}"
 DB_USER="${POSTGRES_USER:-appuser}"
 DB_PASSWORD="${POSTGRES_PASSWORD:-dbuser123}"
