@@ -2,7 +2,7 @@
 
 # Universal Database Backup Script
 # Automatically detects and backs up the running database
-# Reads from runtime environment variables; does not read or cat any .env files.
+# Reads from runtime environment variables only; does not read or cat any .env files.
 
 DB_NAME="${POSTGRES_DB:-myapp}"
 DB_USER="${POSTGRES_USER:-appuser}"

@@ -5,6 +5,7 @@ Hardened CareerPlatformDatabase container:
 - Runtime environment variables are supplied via Docker/Compose/Kubernetes only.
 - Local .env files are excluded from the Docker build context by .dockerignore.
 - A .env.example is provided to document expected variables.
+- Dockerfile uses the official postgres base image and never reads `.env` at build time.
 
 Build:
 - docker build -t career-platform-db ./CareerPlatformDatabase
@@ -30,6 +31,6 @@ services:
       POSTGRES_PORT: 5000
 
 Notes:
-- db_visualizer reads environment variables from process.env; it does not require .env files. If you choose to keep local files for development, provide variables via your shell or compose (avoid wildcard globs).
+- db_visualizer reads environment variables from process.env; it does not require .env files. If you choose to keep local files for development, export variables in your shell or provide them via compose (avoid wildcard globs and never use cat *.env).
 - See CareerPlatformDatabase/.env.example for available keys.
 - Ensure that no .env is copied or read during image build. All configuration is runtime-only.

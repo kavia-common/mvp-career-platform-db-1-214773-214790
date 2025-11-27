@@ -1,0 +1,19 @@
+# Exclude any local env files from build context
+.env
+.env.*
+*.env
+*.env.*
+**/.env
+**/.env.*
+
+# Node modules or caches (none currently committed)
+node_modules
+npm-debug.log
+
+# Backups
+database_backup.*
+db_connection.txt
+
+# VCS
+.git
+.gitignore

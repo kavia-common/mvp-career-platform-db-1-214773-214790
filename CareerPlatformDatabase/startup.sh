@@ -3,12 +3,33 @@
 # Minimal PostgreSQL startup script with full paths
 # Read from runtime env with safe defaults, not from .env files at build time
 # Do not source or concatenate any .env files; rely solely on process environment.
-DB_NAME="${POSTGRES_DB:-myapp}"
-DB_USER="${POSTGRES_USER:-appuser}"
-DB_PASSWORD="${POSTGRES_PASSWORD:-dbuser123}"
+
+# PUBLIC_INTERFACE
+# The following env vars are read at runtime:
+# - POSTGRES_DB: database name (required)
+# - POSTGRES_USER: DB user (required)
+# - POSTGRES_PASSWORD: DB user password (required)
+# - POSTGRES_PORT: PostgreSQL port (optional, default 5000)
+DB_NAME="${POSTGRES_DB:-}"
+DB_USER="${POSTGRES_USER:-}"
+DB_PASSWORD="${POSTGRES_PASSWORD:-}"
 DB_PORT="${POSTGRES_PORT:-5000}"
 
 echo "Starting PostgreSQL setup..."
+
+# Defensive: ensure required POSTGRES_* variables are present at runtime.
+# We intentionally do NOT read any local .env file. Pass these via Docker/Compose/K8s.
+missing_env=()
+[ -z "$DB_NAME" ] && missing_env+=("POSTGRES_DB")
+[ -z "$DB_USER" ] && missing_env+=("POSTGRES_USER")
+[ -z "$DB_PASSWORD" ] && missing_env+=("POSTGRES_PASSWORD")
+
+if [ ${#missing_env[@]} -gt 0 ]; then
+  echo "ERROR: Missing required environment variables: ${missing_env[*]}"
+  echo "This container does not read .env files. Supply env vars at runtime, for example:"
+  echo "  docker run -e POSTGRES_DB=myapp -e POSTGRES_USER=appuser -e POSTGRES_PASSWORD=*** -e POSTGRES_PORT=5000 <image>"
+  exit 1
+fi
 
 # Find PostgreSQL version and set paths
 PG_VERSION=$(ls /usr/lib/postgresql/ 2>/dev/null | head -1)
