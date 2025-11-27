@@ -25,27 +25,33 @@ app.use((req, res, next) => {
 });
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Load environment variables from .env files
+/**
+ * Environment loader
+ * Prefer runtime environment variables passed via Docker/Compose.
+ * For local development, if *.env files exist, they are loaded best-effort.
+ * Build never requires these files.
+ */
 function loadEnvFiles() {
   const envFiles = ['postgres', 'mysql', 'sqlite', 'mongodb'];
   const allEnvVars = {};
-  
+
   envFiles.forEach(dbType => {
     const filePath = `${dbType}.env`;
-    if (!fs.existsSync(filePath)) return;
-    
+    if (!fs.existsSync(filePath)) return; // optional: do nothing if missing
+
     try {
       const content = fs.readFileSync(filePath, 'utf8');
       let varsLoaded = 0;
-      
+
       content.split('\n').forEach(line => {
         const trimmed = line.trim();
-        if (trimmed && trimmed.startsWith('export ')) {
-          const exportLine = trimmed.substring(7);
+        if (trimmed && (trimmed.startsWith('export ') || /^[A-Za-z_][A-Za-z0-9_]*=/.test(trimmed))) {
+          // Support lines with or without "export "
+          const exportLine = trimmed.startsWith('export ') ? trimmed.substring(7) : trimmed;
           const [key, ...valueParts] = exportLine.split('=');
           if (key && valueParts.length > 0) {
             let value = valueParts.join('=');
-            if ((value.startsWith('"') && value.endsWith('"')) || 
+            if ((value.startsWith('"') && value.endsWith('"')) ||
                 (value.startsWith("'") && value.endsWith("'"))) {
               value = value.slice(1, -1);
             }
@@ -54,14 +60,15 @@ function loadEnvFiles() {
           }
         }
       });
-      
+
       console.log(`✓ ${filePath} loaded (${varsLoaded} variables)`);
     } catch (error) {
       console.log(`✗ Error loading ${filePath}:`, error.message);
     }
   });
-  
-  return { ...process.env, ...allEnvVars };
+
+  // process.env always takes precedence
+  return { ...allEnvVars, ...process.env };
 }
 
 const env = loadEnvFiles();

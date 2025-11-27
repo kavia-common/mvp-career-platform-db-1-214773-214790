@@ -1,15 +1,20 @@
 #!/bin/bash
 
 # Minimal PostgreSQL startup script with full paths
-DB_NAME="myapp"
-DB_USER="appuser"
-DB_PASSWORD="dbuser123"
-DB_PORT="5000"
+# Read from runtime env with safe defaults, not from .env files at build time
+DB_NAME="${POSTGRES_DB:-myapp}"
+DB_USER="${POSTGRES_USER:-appuser}"
+DB_PASSWORD="${POSTGRES_PASSWORD:-dbuser123}"
+DB_PORT="${POSTGRES_PORT:-5000}"
 
 echo "Starting PostgreSQL setup..."
 
 # Find PostgreSQL version and set paths
-PG_VERSION=$(ls /usr/lib/postgresql/ | head -1)
+PG_VERSION=$(ls /usr/lib/postgresql/ 2>/dev/null | head -1)
+if [ -z "$PG_VERSION" ]; then
+  echo "Could not determine PostgreSQL version under /usr/lib/postgresql/"
+  echo "Continuing, but pg_isready/psql lookups may fail."
+fi
 PG_BIN="/usr/lib/postgresql/${PG_VERSION}/bin"
 
 echo "Found PostgreSQL version: ${PG_VERSION}"
@@ -93,27 +98,14 @@ GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};
 -- Connect to the specific database for schema-level permissions
 \c ${DB_NAME}
 
--- For PostgreSQL 15+, we need to handle public schema permissions differently
--- First, grant usage on public schema
+-- Permissions on public schema
 GRANT USAGE ON SCHEMA public TO ${DB_USER};
-
--- Grant CREATE permission on public schema
 GRANT CREATE ON SCHEMA public TO ${DB_USER};
-
--- Make the user owner of all future objects they create in public schema
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${DB_USER};
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${DB_USER};
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO ${DB_USER};
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TYPES TO ${DB_USER};
-
--- If you want the user to be able to create objects without restrictions,
--- you can make them the owner of the public schema (optional but effective)
--- ALTER SCHEMA public OWNER TO ${DB_USER};
-
--- Alternative: Grant all privileges on schema public to the user
 GRANT ALL ON SCHEMA public TO ${DB_USER};
-
--- Ensure the user can work with any existing objects
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${DB_USER};
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ${DB_USER};
 GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO ${DB_USER};
@@ -121,36 +113,24 @@ EOF
 
 # Additionally, connect to the specific database to ensure permissions
 sudo -u postgres ${PG_BIN}/psql -p ${DB_PORT} -d ${DB_NAME} << EOF
--- Double-check permissions are set correctly in the target database
 GRANT ALL ON SCHEMA public TO ${DB_USER};
 GRANT CREATE ON SCHEMA public TO ${DB_USER};
-
--- Show current permissions for debugging
 \dn+ public
 EOF
 
-# Save connection command to a file
+# Save connection command to a file (for developer convenience)
 echo "psql postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" > db_connection.txt
 echo "Connection string saved to db_connection.txt"
 
-# Save environment variables to a file
-cat > db_visualizer/postgres.env << EOF
-export POSTGRES_URL="postgresql://localhost:${DB_PORT}/${DB_NAME}"
-export POSTGRES_USER="${DB_USER}"
-export POSTGRES_PASSWORD="${DB_PASSWORD}"
-export POSTGRES_DB="${DB_NAME}"
-export POSTGRES_PORT="${DB_PORT}"
-EOF
+# Do NOT write any .env files at build or runtime that would be cat'ed later.
+# The Node db_visualizer reads environment variables directly from process.env.
+# If needed for local dev, you can 'source' a manually created .env file before running.
 
 echo "PostgreSQL setup complete!"
 echo "Database: ${DB_NAME}"
 echo "User: ${DB_USER}"
 echo "Port: ${DB_PORT}"
 echo ""
-
-echo "Environment variables saved to db_visualizer/postgres.env"
-echo "To use with Node.js viewer, run: source db_visualizer/postgres.env"
-
 echo "To connect to the database, use one of the following commands:"
 echo "psql -h localhost -U ${DB_USER} -d ${DB_NAME} -p ${DB_PORT}"
 echo "$(cat db_connection.txt)"
